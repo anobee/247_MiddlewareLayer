@@ -1,139 +1,179 @@
+
 import express from "express";
 import pg from "pg";
 import Joi from "joi";
 
 const app = express();
 const port = 3000;
-const pool = pg
 
-const { Pool } = new Pool({
+const { Pool } = pg;
+
+const pool = new Pool({
     user: "postgres",
     host: "localhost",
     database: "mahasiswa",
     password: "Dd211103",
     port: 5432,
-})
+});
+
+app.use(express.json());
 
 app.use((req, res, next) => {
-    const start = Date.now()
+    const start = Date.now();
 
     res.on("finish", () => {
-        const duration = Date.now() - start
+        const duration = Date.now() - start;
 
         console.log(`
-            method:req.method
-            url:req.OriginalUrl
-            status: res.statusCode 
-            duration: ${duration}ms,)
-        })
-    })
-    
+            method: ${req.method}
+            url: ${req.originalUrl}
+            status: ${res.statusCode}
+            duration: ${duration}ms
+        `);
+    });
 
-        next()
-})
-
+    next();
+});
 
 function successResponse(res, message, data, status = 200) {
     return res.status(status).json({
-    status: "success",
-    message,
-    data,
-    eror: null,
-    })
+        status: "success",
+        message,
+        data,
+        error: null,
+    });
 }
 
 function erorResponse(res, message, status, details = null) {
     return res.status(status).json({
-    success: false,
-    message,
-    data: null,
-    eror: details,
-    })
+        success: false,
+        message,
+        data: null,
+        eror: details,
+    });
 }
 
 const biodataSchema = Joi.object({
-            id: Joi.number().integer().positive(),
-            nama: Joi.string().trim().min(2).max(100).required(),
-            nim: Joi.string().trim().length(20).required(),
-            kelas: Joi.string().trim().min(1).max(10).required(),
-        })
+    id: Joi.number().integer().positive(),
+    nama: Joi.string().trim().min(2).max(100).required(),
+    nim: Joi.string().trim().length(20).required(),
+    kelas: Joi.string().trim().min(1).max(10).required(),
+});
 
 const idSchema = Joi.object({
-            id: Joi.number().integer().positive().required(),
-        })
+    id: Joi.number().integer().positive().required(),
+});
 
 function validateBody(schema) {
     return (req, res, next) => {
-        const { error } = schema.validate(req.body, 
-        { abortEarly: false,
-        convert: true,
-        allowUnknown: false,
-        })
-        
+        const { error, value } = schema.validate(req.body, {
+            abortEarly: false,
+            convert: true,
+            allowUnknown: false,
+        });
+
         if (error) {
-        return erorResponse(
-            res,
-            "Validation error",
-            400,
-            eror.details.map(item =>({
-                field: item.path.join("."),
-                message: item.message,
-            }))
-        )
+            return erorResponse(
+                res,
+                "Validation error",
+                400,
+                error.details.map(item => ({
+                    field: item.path.join("."),
+                    message: item.message,
+                }))
+            );
         }
 
-        req.body = value
-        next()
-    }   
+        req.body = value;
+        next();
+    };
 }
 
 function validateParams(schema) {
     return (req, res, next) => {
-        const {eror, value} = schema.validate(req.params)
-        
+        const { error, value } = schema.validate(req.params);
+
         if (error) {
             return erorResponse(
                 res,
-                'parameter tidak valid'
+                "Parameter tidak valid",
                 400,
-                eror.details.map(item => ({
+                error.details.map(item => ({
                     field: item.path.join("."),
                     message: item.message,
                 }))
-            )
+            );
         }
-        req.params = value
-        next()
-    }   
+
+        req.params = value;
+        next();
+    };
 }
 
 app.get("/biodata", async (req, res) => {
-    const result = await pool.query("SELECT * FROM biodata ORDER BY id")
+    const result = await pool.query(
+        "SELECT * FROM biodata ORDER BY id"
+    );
 
     return successResponse(
-    res, "Data biodata berhasil diambil", 
-    result.rows
-    )
-})
+        res,
+        "Data biodata berhasil diambil",
+        result.rows
+    );
+});
 
-app.post('/biodata',
-        validateBody(biodataSchema),
+app.post(
+    "/biodata",
+    validateBody(biodataSchema),
+    async (req, res) => {
+        const { nama, nim, kelas } = req.body;
+
+        const result = await pool.query(
+            `INSERT INTO biodata (nama, nim, kelas)
+             VALUES ($1, $2, $3)
+             RETURNING *`,
+            [nama, nim, kelas]
+        );
+
+        return successResponse(
+            res,
+            "Data biodata berhasil ditambahkan",
+            result.rows[0],
+            201
+        );
+    }
+);
+
+app.put('/biodata/:id',
+        validateParams(idSchema),
+        validateBody(biodataSchema.fork(
+            ['nama', 'nim', 'kelas'],
+            (field) => field.required()
+        ).fork(['id'], (field) => field.forbidden())),
         async (req, res) => {
-            const   { nama, nim, kelas } = req.body
+            const { id } = req.params;
+            const { nama, nim, kelas } = req.body;
+
             const result = await pool.query(
-            'INSERT INTO biodata (nama, nim, kelas)
-            VALUES ($1, $2, $3)
-            RETURNING *', [nama, nim, kelas]
-            )
+                'UPDATE biodata
+                SET nama = $1, nim = $2, kelas = $3
+                WHERE id = $4
+                RETURNING *',
+                [nama, nim, kelas, id]
+            );
+
+            if (result.rowCount === 0) {
+                return erorResponse(
+                    res,
+                    `Data biodata dengan id ${id} tidak ditemukan`,
+                    404
+                );
+            }
 
             return successResponse(
                 res,
-                "Data biodata berhasil ditambahkan",
-                result.rows[0],
-                201
-            )
+                `Data biodata dengan id ${id} berhasil diperbarui`,
+                result.rows[0]
+            );
         }
-)
-
-
-    
+    );
