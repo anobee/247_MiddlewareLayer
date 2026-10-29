@@ -115,4 +115,14 @@ app.get("/biodata", async (req, res) => {
     result.rows
     )
 })
+
+app.post('/', async (req, res) => {
+    const result = await pool.query(
+    'SELECT * FROM biodata ORDER BY id'
+    )
+    return successResponse(
+    res, "Data biodata berhasil diambil",
+    result.rows
+    )
+})
     
