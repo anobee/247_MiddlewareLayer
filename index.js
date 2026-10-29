@@ -211,3 +211,19 @@ app.use((req, res) => {
         404
     );
 });
+
+app.use((err, req, res, next) => {
+    console.error(err.stack)
+
+    if (res.headersSent) {
+        return next(err);
+    }
+
+    return erorResponse(
+        res,
+        'Terjadi kesalahan pada server',
+        500
+    )
+})
+
+
