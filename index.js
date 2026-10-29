@@ -34,12 +34,23 @@ app.use((req, res, next) => {
 
 
 function successResponse(res, message, data, status = 200) {
-return res.status(status).json({
+    return res.status(status).json({
     status: "success",
     message,
     data,
     eror: null,
-})
+    })
+}
+
+function erorResponse(res, message, status, details = null) {
+    return res.status(status).json({
+    success: false,
+    message,
+    data: null,
+    eror: details,
+    })
+}
+
 
 
             
