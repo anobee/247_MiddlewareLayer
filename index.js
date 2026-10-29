@@ -144,39 +144,46 @@ app.post(
     }
 );
 
-app.put('/biodata/:id',
-        validateParams(idSchema),
-        validateBody(biodataSchema.fork(
-            ['nama', 'nim', 'kelas'],
-            (field) => field.required()
-        ).fork(['id'], (field) => field.forbidden())),
-        async (req, res) => {
-            const { id } = req.params;
-            const { nama, nim, kelas } = req.body;
 
-            const result = await pool.query(
-                'UPDATE biodata
-                SET nama = $1, nim = $2, kelas = $3
-                WHERE id = $4
-                RETURNING *',
-                [nama, nim, kelas, id]
-            );
+app.put(
+    '/biodata/:id',
+    validateParams(idSchema),
+    validateBody(
+        biodataSchema
+            .fork(
+                ['nama', 'nim', 'kelas'],
+                (field) => field.required()
+            )
+            .fork(['id'], (field) => field.forbidden())
+    ),
+    async (req, res) => {
+        const { id } = req.params;
+        const { nama, nim, kelas } = req.body;
 
-            if (result.rowCount === 0) {
-                return erorResponse(
-                    res,
-                    `Data biodata dengan id ${id} tidak ditemukan`,
-                    404
-                );
-            }
+        const result = await pool.query(
+            `UPDATE biodata
+             SET nama = $1, nim = $2, kelas = $3
+             WHERE id = $4
+             RETURNING *`,
+            [nama, nim, kelas, id]
+        );
 
-            return successResponse(
+        if (result.rowCount === 0) {
+            return erorResponse(
                 res,
-                `Data biodata dengan id ${id} berhasil diperbarui`,
-                result.rows[0]
+                `Data biodata dengan id ${id} tidak ditemukan`,
+                404
             );
         }
-    );
+
+        return successResponse(
+            res,
+            `Data biodata dengan id ${id} berhasil diperbarui`,
+            result.rows[0]
+        );
+    }
+);
+
 
 app.delete(
     '/delete/:id',
