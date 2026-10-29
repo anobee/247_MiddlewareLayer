@@ -204,3 +204,10 @@ app.delete(
         );
     }
 );
+
+app.use((req, res) => {
+    return erorResponse(
+        res,'Endpoint tidak ditemukan',
+        404
+    );
+});
