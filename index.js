@@ -62,5 +62,28 @@ const idSchema = Joi.object({
             id: Joi.number().integer().positive().required(),
         })
 
+function validateBody(schema) {
+    return (req, res, next) => {
+        const { error } = schema.validate(req.body, 
+        { abortEarly: false,
+        convert: true,
+        allowUnknown: false,
+        })
+        
+        if (error) {
+        return erorResponse(
+            res,
+            "Validation error",
+            400,
+            eror.details.map(item =>({
+                field: item.path.join("."),
+                message: item.message,
+            }))
+        )
+        }
 
+        req.body = value
+        next()
+    }   
+}
             
